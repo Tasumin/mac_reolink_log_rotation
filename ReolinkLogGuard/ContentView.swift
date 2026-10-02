@@ -4,76 +4,167 @@ import AppKit
 struct ContentView: View {
     @EnvironmentObject var manager: LogGuardManager
     @State private var showingHelp = false
+    @State private var showingNodeVyuPreview = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Reolink LogGuard").font(.largeTitle).bold()
-                    Text("Keep runaway Reolink logs from filling your Mac.").foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Reolink LogGuard").font(.largeTitle).bold()
+                        Text("Keep runaway Reolink logs from filling your Mac.").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Label(manager.isRunning ? "Automatic cleanup active" : "Service not loaded", systemImage: manager.isRunning ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 }
-                Spacer()
-                Label(manager.isRunning ? "Automatic cleanup active" : "Service not loaded", systemImage: manager.isRunning ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-            }
 
-            GroupBox("Log Storage") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack { Text(manager.formattedSize).font(.title2).bold(); Spacer(); Text("Limit: \(manager.maxSizeGB, specifier: "%.1f") GB") }
-                    ProgressView(value: manager.fractionUsed)
-                    Text(manager.expandedLogDirectory).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                }.padding(6)
-            }
-
-            GroupBox("Protection Settings") {
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
-                    GridRow { Text("Maximum size"); HStack { TextField("2", value: $manager.maxSizeGB, format: .number).frame(width: 90); Text("GB") } }
-                    GridRow { Text("Retention"); HStack { TextField("7", value: $manager.retentionDays, format: .number).frame(width: 90); Text("days") } }
-                    GridRow { Text("Check every"); Picker("", selection: $manager.checkInterval) { Text("15 minutes").tag(900); Text("30 minutes").tag(1800); Text("1 hour").tag(3600); Text("2 hours").tag(7200); Text("6 hours").tag(21600); Text("12 hours").tag(43200); Text("24 hours").tag(86400) }.labelsHidden().frame(width: 160) }
-                    GridRow { Text("Log directory"); TextField("Log directory", text: $manager.logDirectory).frame(minWidth: 330) }
-                }.padding(6)
-            }
-
-            HStack {
-                Button("Clean Now") { manager.runCleanup(dryRun: false) }.buttonStyle(.borderedProminent)
-                Button("Dry Run") { manager.runCleanup(dryRun: true) }
-                Button("Open Log Folder") { manager.openLogFolder() }
-                Button("Activity Log") { manager.openActivityLog() }
-                Button("Help") { showingHelp = true }
-                Spacer()
-                Button {
-                    manager.updateApp()
-                } label: {
-                    if manager.isUpdating { ProgressView().controlSize(.small) } else { Label("Update Now", systemImage: "arrow.triangle.2.circlepath") }
+                GroupBox("Log Storage") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack { Text(manager.formattedSize).font(.title2).bold(); Spacer(); Text("Limit: \(manager.maxSizeGB, specifier: "%.1f") GB") }
+                        ProgressView(value: manager.fractionUsed)
+                        Text(manager.expandedLogDirectory).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }.padding(6)
                 }
-                .disabled(manager.isUpdating)
-                Button("Save Settings") { manager.saveConfig() }
-            }
 
-            GroupBox("Activity") {
-                ScrollView { Text(manager.activity).font(.system(.caption, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
-                    .frame(height: 70).padding(4)
-            }
+                GroupBox("Protection Settings") {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+                        GridRow { Text("Maximum size"); HStack { TextField("2", value: $manager.maxSizeGB, format: .number).frame(width: 90); Text("GB") } }
+                        GridRow { Text("Retention"); HStack { TextField("7", value: $manager.retentionDays, format: .number).frame(width: 90); Text("days") } }
+                        GridRow { Text("Check every"); Picker("", selection: $manager.checkInterval) { Text("15 minutes").tag(900); Text("30 minutes").tag(1800); Text("1 hour").tag(3600); Text("2 hours").tag(7200); Text("6 hours").tag(21600); Text("12 hours").tag(43200); Text("24 hours").tag(86400) }.labelsHidden().frame(width: 160) }
+                        GridRow { Text("Log directory"); TextField("Log directory", text: $manager.logDirectory).frame(minWidth: 330) }
+                    }.padding(6)
+                }
 
-            HStack(spacing: 12) {
-                Image(systemName: "wave.3.right.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.blue)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Need monitoring beyond one Mac?").font(.headline)
-                    Text("NodeVyu provides centralized monitoring for devices, services and infrastructure.")
-                        .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button("Clean Now") { manager.runCleanup(dryRun: false) }.buttonStyle(.borderedProminent)
+                    Button("Dry Run") { manager.runCleanup(dryRun: true) }
+                    Button("Open Log Folder") { manager.openLogFolder() }
+                    Button("Activity Log") { manager.openActivityLog() }
+                    Button("Help") { showingHelp = true }
+                    Spacer()
+                    Button {
+                        manager.updateApp()
+                    } label: {
+                        if manager.isUpdating { ProgressView().controlSize(.small) } else { Label("Update Now", systemImage: "arrow.triangle.2.circlepath") }
+                    }
+                    .disabled(manager.isUpdating)
+                    Button("Save Settings") { manager.saveConfig() }
                 }
-                Spacer()
-                Button("Learn about NodeVyu") {
-                    if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
+
+                GroupBox("Activity") {
+                    ScrollView { Text(manager.activity).font(.system(.caption, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
+                        .frame(height: 70).padding(4)
                 }
+
+                NodeVyuPromotion(showPreview: $showingNodeVyuPreview)
             }
-            .padding(12)
-            .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
+            .padding(24)
         }
-        .padding(24)
         .onAppear { manager.refresh() }
         .sheet(isPresented: $showingHelp) { HelpView() }
+        .sheet(isPresented: $showingNodeVyuPreview) { NodeVyuPreview() }
+    }
+}
+
+struct NodeVyuPromotion: View {
+    @Binding var showPreview: Bool
+    private let imageURL = URL(string: "https://nodevyu.com/og-image.png")!
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "wave.3.right.circle.fill").font(.system(size: 34)).foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Take monitoring beyond your Mac with NodeVyu").font(.title3).bold()
+                    Text("Know what's online, what's failing, and where attention is needed — from one monitoring platform.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(spacing: 18) {
+                Label("Device & service monitoring", systemImage: "network")
+                Label("Centralized visibility", systemImage: "rectangle.3.group")
+                Label("Fast issue detection", systemImage: "exclamationmark.triangle")
+            }
+            .font(.caption)
+
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                        .onTapGesture { showPreview = true }
+                        .help("Click to enlarge the NodeVyu platform preview")
+                case .failure:
+                    platformPlaceholder
+                case .empty:
+                    ZStack { platformPlaceholder; ProgressView() }
+                @unknown default:
+                    platformPlaceholder
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 260)
+
+            HStack {
+                Text("Monitor infrastructure, endpoints and services without waiting for users to tell you something is down.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("See NodeVyu") {
+                    if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
+                }.buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var platformPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+            VStack(spacing: 8) {
+                Image(systemName: "rectangle.3.group").font(.system(size: 34)).foregroundStyle(.secondary)
+                Text("NodeVyu Platform Preview").font(.headline)
+                Text("Visit NodeVyu to see the monitoring platform.").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }
+    }
+}
+
+struct NodeVyuPreview: View {
+    @Environment(\.dismiss) private var dismiss
+    private let imageURL = URL(string: "https://nodevyu.com/og-image.png")!
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("NodeVyu Monitoring Platform").font(.title2).bold()
+                    Text("Centralized visibility for devices, services and infrastructure.").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+            AsyncImage(url: imageURL) { phase in
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFit()
+                } else {
+                    ProgressView("Loading NodeVyu preview…")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack {
+                Text("See what needs attention before it becomes a bigger problem.").foregroundStyle(.secondary)
+                Spacer()
+                Button("Visit nodevyu.com") {
+                    if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
+                }.buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 900, minHeight: 620)
     }
 }
 
@@ -101,8 +192,8 @@ struct HelpView: View {
                     helpSection("Troubleshooting", "If the dashboard says Service not loaded, click Save Settings to rewrite and reload the background LaunchAgent. The Activity Log button opens the cleanup log for additional details.")
                     Divider()
                     Text("NodeVyu").font(.headline)
-                    Text("For centralized monitoring of devices, services and infrastructure, visit NodeVyu.")
-                    Button("Open nodevyu.com") {
+                    Text("NodeVyu gives you centralized monitoring for devices, services and infrastructure so you can spot failures, see what's online, and focus on what needs attention.")
+                    Button("Explore NodeVyu") {
                         if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
                     }
                 }.padding(20)
