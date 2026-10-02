@@ -1,62 +1,77 @@
-# mac_reolink_log_rotation
+# Reolink LogGuard for macOS
 
-Automatic retention and disk-size protection for Reolink macOS client logs.
+A native macOS utility that prevents runaway Reolink client logs from consuming your SSD. It was created after a Reolink installation accumulated more than 350 GB under `~/Library/Logs/reolink`, which macOS reported as System Data.
 
-This utility was created after the Reolink macOS client accumulated hundreds of gigabytes under `~/Library/Logs/reolink`, which macOS can report as System Data.
+## Native app
 
-## Features
+The installer builds **Reolink LogGuard.app** with SwiftUI and installs it in `/Applications`, making it available from Applications, Launchpad and Spotlight.
 
-- Deletes logs older than a configurable retention period
-- Enforces a configurable maximum log-directory size
-- Deletes oldest files first when the size limit is exceeded
-- Runs automatically with a macOS LaunchAgent
-- Dry-run mode
-- No root privileges required for normal user-owned logs
-- Safety checks prevent operation on dangerous paths
-- Preserves Reolink configuration and recordings outside the configured log directory
+The dashboard provides:
 
-## Defaults
+- Current Reolink log-directory usage
+- Configured maximum size
+- Automatic-cleanup service status
+- Configurable retention days
+- Configurable maximum size
+- Configurable cleanup interval
+- Configurable log directory
+- Clean Now
+- Dry Run
+- Open Log Folder
+- Activity Log
 
-- Directory: `~/Library/Logs/reolink`
+## Default protection
+
+- Log directory: `~/Library/Logs/reolink`
 - Retention: 7 days
 - Maximum size: 2 GB
 - Check interval: 1 hour
+
+Cleanup runs once when the LaunchAgent loads and then at the configured interval. Files older than the retention period are removed first. If the directory still exceeds its size limit, the oldest remaining files are removed until it is below the limit.
+
+## Requirements
+
+- macOS 13 or later
+- Apple Command Line Developer Tools / Swift compiler (`xcode-select --install` if needed)
 
 ## Install
 
 ```bash
 git clone https://github.com/Tasumin/mac_reolink_log_rotation.git
 cd mac_reolink_log_rotation
-chmod +x install.sh uninstall.sh logguard.sh
+chmod +x *.sh
 ./install.sh
 ```
 
-Add the command directory to your shell PATH if necessary:
+The installer sets up the background LaunchAgent, builds the native SwiftUI application, installs it as `/Applications/Reolink LogGuard.app`, and opens it.
+
+If `/Applications` requires elevated permissions, the installer will request your administrator password for that copy step.
+
+## Updating an existing installation
 
 ```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+cd mac_reolink_log_rotation
+git pull
+./install.sh
 ```
 
-## Commands
+Your installed `config.conf` is preserved.
+
+## CLI
+
+The UI is the primary interface, but the command-line helper remains available:
 
 ```bash
-logguard status
-logguard dry-run
-logguard run
-logguard config
-logguard logs
+~/.local/bin/logguard status
+~/.local/bin/logguard dry-run
+~/.local/bin/logguard run
+~/.local/bin/logguard config
+~/.local/bin/logguard logs
 ```
 
-Run `logguard dry-run` first if you want to preview cleanup without deleting files.
-
-## Configuration
-
-After installation the active configuration is stored at:
+## Active configuration
 
 `~/.local/share/reolink-logguard/config.conf`
-
-Defaults:
 
 ```bash
 LOG_DIR="$HOME/Library/Logs/reolink"
@@ -66,13 +81,7 @@ CHECK_INTERVAL=3600
 LOGGUARD_LOG="$HOME/Library/Logs/reolink-logguard.log"
 ```
 
-The installer preserves an existing installed configuration during upgrades.
-
-## Cleanup behavior
-
-LogGuard first removes files older than `RETENTION_DAYS`. It then checks the total directory size. If the directory is still larger than `MAX_SIZE_GB`, it removes the oldest remaining files until the projected size is below the limit.
-
-This protects the Mac even when Reolink produces enough logs to exceed the configured maximum before the normal retention period expires.
+Saving settings from the app updates this configuration and reloads the LaunchAgent so interval changes take effect immediately.
 
 ## Uninstall
 
@@ -80,8 +89,8 @@ This protects the Mac even when Reolink produces enough logs to exceed the confi
 ./uninstall.sh
 ```
 
-Uninstalling LogGuard does not delete Reolink's logs.
+This removes the application, LaunchAgent and LogGuard support files. Existing Reolink logs are intentionally left alone.
 
 ## Disclaimer
 
-This is an independent utility and is not affiliated with or endorsed by Reolink.
+This is an independent open-source utility and is not affiliated with or endorsed by Reolink.
