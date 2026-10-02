@@ -81,22 +81,54 @@ final class LogGuardManager: ObservableObject {
             activity = "Update source was not found at ~/mac_reolink_log_rotation. Reinstall from GitHub first."
             return
         }
+
         isUpdating = true
-        activity = "Checking GitHub and installing the latest version…"
-        DispatchQueue.global(qos: .userInitiated).async {
-            let updater = """
-            set -e
-            cd \(self.shellQuote(self.repoDir))
-            /usr/bin/git fetch origin
-            /usr/bin/git reset --hard origin/main
-            /bin/chmod +x ./*.sh
-            nohup /bin/zsh ./install.sh > \"$HOME/Library/Logs/reolink-logguard-update.log\" 2>&1 &
-            """
-            let result = self.run("/bin/zsh", ["-c", updater])
-            DispatchQueue.main.async {
-                self.activity = result.isEmpty ? "Update started. LogGuard will close and reopen when installation completes." : result
-                self.isUpdating = false
+        activity = "Downloading update… LogGuard will close and reopen automatically."
+
+        let helperPath = "/tmp/reolink-logguard-update-\(getpid()).sh"
+        let updateLog = NSHomeDirectory() + "/Library/Logs/reolink-logguard-update.log"
+        let helper = """
+        #!/bin/zsh
+        exec >> \(shellQuote(updateLog)) 2>&1
+        echo "=== LogGuard update started $(date) ==="
+        sleep 2
+        cd \(shellQuote(repoDir)) || exit 1
+        /usr/bin/git fetch origin || exit 1
+        /usr/bin/git reset --hard origin/main || exit 1
+        /bin/chmod +x ./*.sh
+        echo "Source updated. Running installer..."
+        ./install.sh
+        status=$?
+        echo "Installer exit code: $status"
+        if [[ $status -eq 0 ]]; then
+          sleep 2
+          /usr/bin/open -n \"/Applications/Reolink LogGuard.app\"
+        fi
+        /bin/rm -f \"$0\"
+        exit $status
+        """
+
+        do {
+            try helper.write(toFile: helperPath, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helperPath)
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = [helperPath]
+            process.standardInput = FileHandle.nullDevice
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try process.run()
+
+            // The updater now lives outside the app bundle. Terminating here lets
+            // install.sh replace the running application cleanly; the helper then
+            // explicitly launches the newly installed copy.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                NSApplication.shared.terminate(nil)
             }
+        } catch {
+            isUpdating = false
+            activity = "Could not start update: \(error.localizedDescription)"
         }
     }
 
