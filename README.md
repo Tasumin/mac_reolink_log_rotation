@@ -1,10 +1,14 @@
 # Reolink LogGuard for macOS
 
+[![Latest Release](https://img.shields.io/github/v/release/Tasumin/mac_reolink_log_rotation?display_name=tag&sort=semver)](https://github.com/Tasumin/mac_reolink_log_rotation/releases/latest)
+[![Latest Release Downloads](https://img.shields.io/github/downloads/Tasumin/mac_reolink_log_rotation/latest/total?label=latest%20release%20downloads)](https://github.com/Tasumin/mac_reolink_log_rotation/releases/latest)
+[![Total Downloads](https://img.shields.io/github/downloads/Tasumin/mac_reolink_log_rotation/total?label=total%20downloads)](https://github.com/Tasumin/mac_reolink_log_rotation/releases)
+
 A native macOS utility that prevents runaway Reolink client logs from consuming your SSD. It was created after a Reolink installation accumulated more than 350 GB under `~/Library/Logs/reolink`, which macOS reported as System Data.
 
 ## Native app
 
-The installer builds **Reolink LogGuard.app** with SwiftUI and installs it in `/Applications`, making it available from Applications, Launchpad and Spotlight.
+**Reolink LogGuard.app** is distributed as a standalone macOS DMG. Normal users do not need Git, Terminal, or the source repository. On first launch, LogGuard automatically installs its per-user background cleanup service.
 
 The dashboard provides:
 
@@ -33,11 +37,38 @@ Cleanup runs once when the LaunchAgent loads and then at the configured interval
 ## Requirements
 
 - macOS 13 or later
-- Apple Command Line Developer Tools / Swift compiler (`xcode-select --install` if needed)
+- Apple Silicon Mac for the current release
 
-## First-time installation
+## Installation
 
-Choose a directory where you want to keep the source, such as your home directory, then run:
+1. Download the latest `Reolink-LogGuard-*.dmg` from [GitHub Releases](https://github.com/Tasumin/mac_reolink_log_rotation/releases/latest).
+2. Open the DMG.
+3. Drag **Reolink LogGuard** into **Applications**.
+4. Launch Reolink LogGuard from Applications, Launchpad, or Spotlight.
+5. LogGuard automatically configures its background cleanup service.
+
+No source checkout or separate installer is required.
+
+## Updating Reolink LogGuard
+
+After installation, the normal update method is directly from the app:
+
+1. Open **Reolink LogGuard**.
+2. Select **Maintenance**.
+3. Click **Update Now**.
+4. LogGuard retrieves the latest GitHub Release DMG, installs the new application, and reopens itself.
+
+Your LogGuard configuration is stored outside the application at:
+
+```text
+~/.local/share/reolink-logguard/config.conf
+```
+
+Settings such as maximum log size, retention period, log directory, and cleanup interval are preserved during updates.
+
+### Source / development installation
+
+Developers who want to build LogGuard from source can clone the repository:
 
 ```bash
 cd ~
@@ -47,29 +78,9 @@ chmod +x *.sh
 ./install.sh
 ```
 
-The installer sets up the background LaunchAgent, builds the native SwiftUI application, installs it as `/Applications/Reolink LogGuard.app`, and opens it.
-
-If `/Applications` requires elevated permissions, the installer will request your administrator password for that copy step.
-
-## Updating Reolink LogGuard
-
-After the initial installation, the normal update method is directly from the app:
-
-1. Open **Reolink LogGuard**.
-2. Click **Update Now**.
-3. LogGuard downloads the latest `main` branch from GitHub, resets the local application source to that version, rebuilds the app, replaces the installed copy, and reopens it.
-
-Your LogGuard configuration is stored outside the Git repository at:
-
-```text
-~/.local/share/reolink-logguard/config.conf
-```
-
-Settings such as maximum log size, retention period, log directory and cleanup interval are preserved during updates.
-
 ### Manual recovery update
 
-Terminal updates are normally unnecessary. If the app cannot update itself, use the following recovery procedure:
+For source-based installations, or if you are developing/testing LogGuard locally:
 
 ```bash
 cd ~/mac_reolink_log_rotation
@@ -79,17 +90,11 @@ chmod +x *.sh
 ./install.sh
 ```
 
-This intentionally makes the local source tree exactly match the current GitHub `main` branch before reinstalling. Application settings are unaffected because they are stored outside the repository.
-
-If you do not remember where the repository was cloned, locate it with:
-
-```bash
-find ~ -type d -name "mac_reolink_log_rotation" 2>/dev/null
-```
+Application settings are unaffected because they are stored outside the repository.
 
 ### Verify the update
 
-After an update, Reolink LogGuard should reopen automatically. You can also open it from **Applications**, **Launchpad**, or **Spotlight**.
+The **Maintenance** tab displays the currently installed application version and build number.
 
 To verify the background cleanup service from Terminal:
 
@@ -123,15 +128,21 @@ LOGGUARD_LOG="$HOME/Library/Logs/reolink-logguard.log"
 
 Saving settings from the app updates this configuration and reloads the LaunchAgent so interval changes take effect immediately.
 
+## Download statistics
+
+GitHub tracks downloads for release assets. The badges at the top of this README show downloads for the latest release and cumulative downloads across all published release assets.
+
+Release-specific download counts are also available from the [GitHub Releases](https://github.com/Tasumin/mac_reolink_log_rotation/releases) API and release metadata.
+
 ## Uninstall
 
-From the cloned repository directory:
+Source installations can use:
 
 ```bash
 ./uninstall.sh
 ```
 
-This removes the application, LaunchAgent and LogGuard support files. Existing Reolink logs are intentionally left alone.
+For standalone installations, quit LogGuard and remove **Reolink LogGuard.app** from Applications. LogGuard support files live under `~/.local/share/reolink-logguard` and its LaunchAgent under `~/Library/LaunchAgents`.
 
 ## Disclaimer
 
