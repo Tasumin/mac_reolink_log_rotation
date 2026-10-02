@@ -4,9 +4,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.local/share/reolink-logguard"
 BIN_DIR="$HOME/.local/bin"
 PLIST="$HOME/Library/LaunchAgents/com.reolink.logguard.plist"
+BUILD_DIR="$SCRIPT_DIR/build"
 APP_DEST="/Applications/Reolink LogGuard.app"
-BUILD_APP="$SCRIPT_DIR/build/Reolink LogGuard.app"
+BUILD_APP="$BUILD_DIR/Reolink LogGuard.app"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+cleanup_build() {
+  # Never leave a valid .app in the source tree. Spotlight/LaunchServices would
+  # otherwise discover it as a second copy of Reolink LogGuard.
+  if [[ -d "$BUILD_APP" && -x "$LSREGISTER" ]]; then
+    "$LSREGISTER" -u "$BUILD_APP" >/dev/null 2>&1 || true
+  fi
+  /bin/rm -rf "$BUILD_DIR"
+}
 
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$HOME/Library/LaunchAgents"
 /bin/cp -f "$SCRIPT_DIR/logguard.sh" "$INSTALL_DIR/logguard.sh"
@@ -42,6 +52,9 @@ EOF
 /bin/launchctl bootout gui/$(id -u) "$PLIST" 2>/dev/null || true
 /bin/launchctl bootstrap gui/$(id -u) "$PLIST"
 
+# Remove any stale staging app before building.
+cleanup_build
+
 echo "Building Reolink LogGuard.app..."
 /bin/chmod +x "$SCRIPT_DIR/build.sh"
 "$SCRIPT_DIR/build.sh"
@@ -61,20 +74,17 @@ echo "Installing fresh application bundle..."
 [[ -x "$APP_DEST/Contents/MacOS/ReolinkLogGuard" ]] || { echo "ERROR: Installed app is missing its executable." >&2; exit 1; }
 /usr/bin/codesign --verify --deep --strict "$APP_DEST" >/dev/null 2>&1 || { echo "ERROR: Installed app failed code-signature verification." >&2; exit 1; }
 
-# Explicitly register this hand-built .app with macOS. Copying an app into /Applications
-# is not always enough for Launchpad/Spotlight to discover it immediately.
+# The staging bundle must disappear before macOS indexes applications.
+cleanup_build
+
 echo "Registering application with macOS..."
 /usr/bin/touch "$APP_DEST"
 if [[ -x "$LSREGISTER" ]]; then
   "$LSREGISTER" -f "$APP_DEST" >/dev/null 2>&1 || true
 fi
-/usr/bin/mdimport -f "$APP_DEST" >/dev/null 2>&1 || /usr/bin/mdimport "$APP_DEST" >/dev/null 2>&1 || true
-
-# Ask Dock/Launchpad to refresh its application view. It restarts automatically.
+/usr/bin/mdimport -i "$APP_DEST" >/dev/null 2>&1 || true
 /usr/bin/killall Dock >/dev/null 2>&1 || true
 
-# Give LaunchServices a moment, then verify name-based resolution. Failure here is
-# informational because exact-path launching still works.
 sleep 2
 if /usr/bin/open -Ra "Reolink LogGuard" >/dev/null 2>&1; then
   echo "LaunchServices registration verified: Reolink LogGuard"
