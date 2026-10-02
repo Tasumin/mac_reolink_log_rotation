@@ -6,6 +6,7 @@ APP="$BUILD/Reolink LogGuard.app"
 MACOS="$APP/Contents/MacOS"
 RESOURCES="$APP/Contents/Resources"
 ICON_SOURCE="$ROOT/ReolinkLogGuard.png"
+NODEVYU_SOURCE="$ROOT/homepage-platform.png"
 ICONSET="$BUILD/ReolinkLogGuard.iconset"
 ICON_FILE="$RESOURCES/ReolinkLogGuard.icns"
 
@@ -32,6 +33,13 @@ else
   echo "WARNING: $ICON_SOURCE not found; building without custom icon."
 fi
 
+if [[ -f "$NODEVYU_SOURCE" ]]; then
+  echo "Bundling NodeVyu platform preview..."
+  /bin/cp -f "$NODEVYU_SOURCE" "$RESOURCES/homepage-platform.png"
+else
+  echo "WARNING: $NODEVYU_SOURCE not found; NodeVyu preview will use the website fallback."
+fi
+
 cat > "$APP/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -42,8 +50,8 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
 <key>CFBundleExecutable</key><string>ReolinkLogGuard</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleIconFile</key><string>ReolinkLogGuard.icns</string>
-<key>CFBundleShortVersionString</key><string>1.0.1</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>1.0.2</string>
+<key>CFBundleVersion</key><string>3</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
