@@ -1,10 +1,12 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @EnvironmentObject var manager: LogGuardManager
+    @State private var showingHelp = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading) {
                     Text("Reolink LogGuard").font(.largeTitle).bold()
@@ -36,6 +38,7 @@ struct ContentView: View {
                 Button("Dry Run") { manager.runCleanup(dryRun: true) }
                 Button("Open Log Folder") { manager.openLogFolder() }
                 Button("Activity Log") { manager.openActivityLog() }
+                Button("Help") { showingHelp = true }
                 Spacer()
                 Button {
                     manager.updateApp()
@@ -48,10 +51,70 @@ struct ContentView: View {
 
             GroupBox("Activity") {
                 ScrollView { Text(manager.activity).font(.system(.caption, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
-                    .frame(height: 80).padding(4)
+                    .frame(height: 70).padding(4)
             }
+
+            HStack(spacing: 12) {
+                Image(systemName: "wave.3.right.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Need monitoring beyond one Mac?").font(.headline)
+                    Text("NodeVyu provides centralized monitoring for devices, services and infrastructure.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Learn about NodeVyu") {
+                    if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
+                }
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
         }
         .padding(24)
         .onAppear { manager.refresh() }
+        .sheet(isPresented: $showingHelp) { HelpView() }
+    }
+}
+
+struct HelpView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Reolink LogGuard Help").font(.title2).bold()
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }.padding()
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    helpSection("What LogGuard does", "LogGuard monitors the Reolink log directory and automatically removes old logs before they can consume excessive disk space.")
+                    helpSection("Maximum size", "Sets the maximum disk space the monitored directory should consume. If it remains over the limit after retention cleanup, the oldest remaining files are removed until usage falls below the limit.")
+                    helpSection("Retention", "Files older than the configured number of days are eligible for automatic removal.")
+                    helpSection("Check every", "Controls how often the background LaunchAgent checks the log directory. The default is once per hour.")
+                    helpSection("Clean Now", "Runs cleanup immediately using your current settings.")
+                    helpSection("Dry Run", "Shows what cleanup would do without deleting files. Use this to verify your configuration safely.")
+                    helpSection("Update Now", "Fetches the newest LogGuard source from GitHub, rebuilds the application, replaces the installed copy and reopens it. Your saved configuration is preserved.")
+                    helpSection("Configuration", "Settings are stored in ~/.local/share/reolink-logguard/config.conf and are preserved when the application is updated.")
+                    helpSection("Troubleshooting", "If the dashboard says Service not loaded, click Save Settings to rewrite and reload the background LaunchAgent. The Activity Log button opens the cleanup log for additional details.")
+                    Divider()
+                    Text("NodeVyu").font(.headline)
+                    Text("For centralized monitoring of devices, services and infrastructure, visit NodeVyu.")
+                    Button("Open nodevyu.com") {
+                        if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) }
+                    }
+                }.padding(20)
+            }
+        }
+        .frame(width: 620, height: 600)
+    }
+
+    private func helpSection(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.headline)
+            Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
