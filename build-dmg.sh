@@ -7,6 +7,12 @@ APP="$ROOT/build/$APP_NAME.app"
 DIST="$ROOT/dist"
 STAGE="$ROOT/build/dmg-stage"
 
+cleanup() {
+  /bin/rm -rf "$STAGE"
+  /bin/rm -rf "$APP"
+}
+trap cleanup EXIT
+
 cd "$ROOT"
 echo "Building $APP_NAME.app..."
 /bin/chmod +x "$ROOT/build.sh"
@@ -42,11 +48,11 @@ EOF
 /bin/rm -f "$DMG"
 echo "Creating $DMG..."
 /usr/bin/hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
-/bin/rm -rf "$STAGE"
 
 echo
 echo "DMG created successfully:"
 echo "$DMG"
+echo "Temporary build app removed so macOS does not discover a second LogGuard application."
 echo
 echo "Upload this DMG as an asset on the GitHub Release. Update Now will use the DMG attached to the latest release."
 echo "For broad public distribution, Developer ID signing and Apple notarization are still recommended."
