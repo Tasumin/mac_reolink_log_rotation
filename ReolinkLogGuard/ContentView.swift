@@ -72,8 +72,13 @@ struct ConfigurationTab: View {
 
 struct MaintenanceTab: View {
     @EnvironmentObject var manager: LogGuardManager; @Binding var showHelp: Bool
+    private var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        return "Version \(version) (Build \(build))"
+    }
     var body: some View { ScrollView { VStack(alignment: .leading, spacing: 18) {
-        Text("Maintenance & Support").font(.title2).bold(); Text("Run manual maintenance, review activity, get help, and keep LogGuard current.").foregroundStyle(.secondary)
+        HStack { VStack(alignment: .leading, spacing: 3) { Text("Maintenance & Support").font(.title2).bold(); Text("Run manual maintenance, review activity, get help, and keep LogGuard current.").foregroundStyle(.secondary) }; Spacer(); Text(versionText).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 6).background(.quaternary, in: Capsule()) }
         GroupBox("Manual Maintenance") { VStack(alignment: .leading, spacing: 12) {
             HStack { Button("Clean Now") { manager.runCleanup(dryRun: false) }.buttonStyle(.borderedProminent); Text("Immediately apply your configured cleanup policy.").foregroundStyle(.secondary) }
             HStack { Button("Dry Run") { manager.runCleanup(dryRun: true) }; Text("Preview cleanup without deleting any files.").foregroundStyle(.secondary) }
@@ -90,29 +95,11 @@ struct MaintenanceTab: View {
 
 struct AboutTab: View { @Binding var showNodeVyuPreview: Bool; var body: some View { ScrollView { NodeVyuPromotion(showPreview: $showNodeVyuPreview).padding(20) } } }
 
-private func bundledNodeVyuImage() -> NSImage? {
-    guard let url = Bundle.main.url(forResource: "homepage-platform", withExtension: "png") else { return nil }
-    return NSImage(contentsOf: url)
-}
+private func bundledNodeVyuImage() -> NSImage? { guard let url = Bundle.main.url(forResource: "homepage-platform", withExtension: "png") else { return nil }; return NSImage(contentsOf: url) }
 
 struct NodeVyuPlatformImage: View {
     var maxHeight: CGFloat = 300
-    var body: some View {
-        Group {
-            if let localImage = bundledNodeVyuImage() {
-                Image(nsImage: localImage).resizable().scaledToFit()
-            } else {
-                AsyncImage(url: URL(string: "https://nodevyu.com/homepage-platform.png")) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFit()
-                    case .failure: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); VStack(spacing: 8) { Image(systemName: "photo.badge.exclamationmark").font(.title); Text("NodeVyu platform preview unavailable").font(.headline) } }
-                    case .empty: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); ProgressView("Loading NodeVyu preview…") }
-                    @unknown default: EmptyView()
-                    }
-                }
-            }
-        }.frame(maxWidth: .infinity, maxHeight: maxHeight).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
-    }
+    var body: some View { Group { if let localImage = bundledNodeVyuImage() { Image(nsImage: localImage).resizable().scaledToFit() } else { AsyncImage(url: URL(string: "https://nodevyu.com/homepage-platform.png")) { phase in switch phase { case .success(let image): image.resizable().scaledToFit(); case .failure: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); VStack(spacing: 8) { Image(systemName: "photo.badge.exclamationmark").font(.title); Text("NodeVyu platform preview unavailable").font(.headline) } }; case .empty: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); ProgressView("Loading NodeVyu preview…") }; @unknown default: EmptyView() } } } }.frame(maxWidth: .infinity, maxHeight: maxHeight).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary)) }
 }
 
 struct NodeVyuPromotion: View {
@@ -127,15 +114,11 @@ struct NodeVyuPromotion: View {
 
 struct NodeVyuPreview: View {
     @Environment(\.dismiss) private var dismiss
-    var body: some View { VStack(spacing: 12) {
-        HStack { VStack(alignment: .leading) { Text("NodeVyu Monitoring Platform").font(.title2).bold(); Text("Centralized visibility for devices, services and infrastructure.").foregroundStyle(.secondary) }; Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }
-        NodeVyuPlatformImage(maxHeight: 720)
-        HStack { Text("See what needs attention before it becomes a bigger problem.").foregroundStyle(.secondary); Spacer(); Button("Visit nodevyu.com") { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }.buttonStyle(.borderedProminent) }
-    }.padding(20).frame(minWidth: 900, minHeight: 620) }
+    var body: some View { VStack(spacing: 12) { HStack { VStack(alignment: .leading) { Text("NodeVyu Monitoring Platform").font(.title2).bold(); Text("Centralized visibility for devices, services and infrastructure.").foregroundStyle(.secondary) }; Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }; NodeVyuPlatformImage(maxHeight: 720); HStack { Text("See what needs attention before it becomes a bigger problem.").foregroundStyle(.secondary); Spacer(); Button("Visit nodevyu.com") { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }.buttonStyle(.borderedProminent) } }.padding(20).frame(minWidth: 900, minHeight: 620) }
 }
 
 struct HelpView: View {
     @Environment(\.dismiss) private var dismiss
-    var body: some View { VStack(spacing: 0) { HStack { Text("Reolink LogGuard Help").font(.title2).bold(); Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }.padding(); Divider(); ScrollView { VStack(alignment: .leading, spacing: 16) { helpSection("Dashboard", "Shows current Reolink log usage, protection status, retention policy, quick cleanup actions and recent activity."); helpSection("Configuration", "Set the maximum log size, retention period, cleanup interval and monitored directory. Save Settings reloads the background service."); helpSection("Maintenance", "Run cleanup or a dry run, open logs, view activity, access help and install application updates."); helpSection("Maximum size", "Sets the maximum disk space the monitored directory should consume. If it remains over the limit after retention cleanup, the oldest remaining files are removed until usage falls below the limit."); helpSection("Dry Run", "Shows what cleanup would do without deleting files. Use this to verify your configuration safely."); helpSection("Update Now", "Fetches the newest LogGuard source from GitHub, rebuilds the application, replaces the installed copy and reopens it. Your saved configuration is preserved."); helpSection("Configuration file", "Settings are stored in ~/.local/share/reolink-logguard/config.conf and are preserved when the application is updated."); helpSection("Troubleshooting", "If the dashboard says Service not loaded, open Configuration and click Save Settings to rewrite and reload the background LaunchAgent.") }.padding(20) } }.frame(width: 620, height: 600) }
+    var body: some View { VStack(spacing: 0) { HStack { Text("Reolink LogGuard Help").font(.title2).bold(); Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }.padding(); Divider(); ScrollView { VStack(alignment: .leading, spacing: 16) { helpSection("Dashboard", "Shows current Reolink log usage, protection status, retention policy, quick cleanup actions and recent activity."); helpSection("Configuration", "Set the maximum log size, retention period, cleanup interval and monitored directory. Save Settings reloads the background service."); helpSection("Maintenance", "Run cleanup or a dry run, open logs, view activity, access help and install application updates."); helpSection("Maximum size", "Sets the maximum disk space the monitored directory should consume. If it remains over the limit after retention cleanup, the oldest remaining files are removed until usage falls below the limit."); helpSection("Dry Run", "Shows what cleanup would do without deleting files. Use this to verify your configuration safely."); helpSection("Update Now", "Downloads the latest GitHub Release DMG, installs the new application and reopens LogGuard. Your saved configuration is preserved."); helpSection("Configuration file", "Settings are stored in ~/.local/share/reolink-logguard/config.conf and are preserved when the application is updated."); helpSection("Troubleshooting", "If the dashboard says Service not loaded, open Configuration and click Save Settings to rewrite and reload the background LaunchAgent.") }.padding(20) } }.frame(width: 620, height: 600) }
     private func helpSection(_ title: String, _ text: String) -> some View { VStack(alignment: .leading, spacing: 4) { Text(title).font(.headline); Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) } }
 }
