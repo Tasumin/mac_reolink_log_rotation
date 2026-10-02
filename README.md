@@ -19,6 +19,7 @@ The dashboard provides:
 - Dry Run
 - Open Log Folder
 - Activity Log
+- Update Now
 
 ## Default protection
 
@@ -52,54 +53,43 @@ If `/Applications` requires elevated permissions, the installer will request you
 
 ## Updating Reolink LogGuard
 
-Do **not** clone the repository again when updating. Use the existing repository directory, pull the latest code, and rerun the installer.
+After the initial installation, the normal update method is directly from the app:
 
-If you originally cloned the project into your home directory:
+1. Open **Reolink LogGuard**.
+2. Click **Update Now**.
+3. LogGuard downloads the latest `main` branch from GitHub, resets the local application source to that version, rebuilds the app, replaces the installed copy, and reopens it.
 
-```bash
-cd ~/mac_reolink_log_rotation
-git pull origin main
-chmod +x *.sh
-./install.sh
-```
-
-The installer will rebuild the application, replace the installed `/Applications/Reolink LogGuard.app`, reload the background LaunchAgent, and preserve your existing installed configuration at:
+Your LogGuard configuration is stored outside the Git repository at:
 
 ```text
 ~/.local/share/reolink-logguard/config.conf
 ```
 
-This means settings changed in the LogGuard UI, such as your maximum log size, retention period, log directory and cleanup interval, are retained during an update.
+Settings such as maximum log size, retention period, log directory and cleanup interval are preserved during updates.
 
-### If you do not remember where you cloned the repository
+### Manual recovery update
 
-You can locate it with:
+Terminal updates are normally unnecessary. If the app cannot update itself, use the following recovery procedure:
+
+```bash
+cd ~/mac_reolink_log_rotation
+git fetch origin
+git reset --hard origin/main
+chmod +x *.sh
+./install.sh
+```
+
+This intentionally makes the local source tree exactly match the current GitHub `main` branch before reinstalling. Application settings are unaffected because they are stored outside the repository.
+
+If you do not remember where the repository was cloned, locate it with:
 
 ```bash
 find ~ -type d -name "mac_reolink_log_rotation" 2>/dev/null
 ```
 
-Then `cd` to the returned directory and run:
-
-```bash
-git pull origin main
-chmod +x *.sh
-./install.sh
-```
-
-### If Git says you have local changes
-
-Check them before overwriting anything:
-
-```bash
-git status
-```
-
-If you intentionally changed the source code, commit or stash those changes before pulling. If you only use the application UI to change LogGuard settings, those settings are stored outside the Git repository and should not interfere with `git pull`.
-
 ### Verify the update
 
-After installation, Reolink LogGuard should open automatically. You can also open it from **Applications**, **Launchpad**, or **Spotlight**.
+After an update, Reolink LogGuard should reopen automatically. You can also open it from **Applications**, **Launchpad**, or **Spotlight**.
 
 To verify the background cleanup service from Terminal:
 
