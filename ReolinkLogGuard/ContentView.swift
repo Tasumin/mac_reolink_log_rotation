@@ -37,6 +37,12 @@ struct ContentView: View {
                 Button("Open Log Folder") { manager.openLogFolder() }
                 Button("Activity Log") { manager.openActivityLog() }
                 Spacer()
+                Button {
+                    manager.updateApp()
+                } label: {
+                    if manager.isUpdating { ProgressView().controlSize(.small) } else { Label("Update Now", systemImage: "arrow.triangle.2.circlepath") }
+                }
+                .disabled(manager.isUpdating)
                 Button("Save Settings") { manager.saveConfig() }
             }
 
