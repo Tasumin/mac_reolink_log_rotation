@@ -6,20 +6,15 @@ BIN_DIR="$HOME/.local/bin"
 PLIST="$HOME/Library/LaunchAgents/com.reolink.logguard.plist"
 APP_DEST="/Applications/Reolink LogGuard.app"
 BUILD_APP="$SCRIPT_DIR/build/Reolink LogGuard.app"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$HOME/Library/LaunchAgents"
-
-# Always replace installed program files. Preserve only the user's installed config.
 /bin/cp -f "$SCRIPT_DIR/logguard.sh" "$INSTALL_DIR/logguard.sh"
 /bin/chmod +x "$INSTALL_DIR/logguard.sh"
-if [[ ! -f "$INSTALL_DIR/config.conf" ]]; then
-  /bin/cp "$SCRIPT_DIR/config.conf" "$INSTALL_DIR/config.conf"
-fi
-
+[[ -f "$INSTALL_DIR/config.conf" ]] || /bin/cp "$SCRIPT_DIR/config.conf" "$INSTALL_DIR/config.conf"
 source "$INSTALL_DIR/config.conf"
 INTERVAL="${CHECK_INTERVAL:-3600}"
 
-# Always rewrite the CLI helper.
 /bin/cat > "$BIN_DIR/logguard" <<EOF
 #!/bin/zsh
 INSTALL_DIR="$INSTALL_DIR"
@@ -34,7 +29,6 @@ esac
 EOF
 /bin/chmod +x "$BIN_DIR/logguard"
 
-# Always rewrite and reload the LaunchAgent.
 /bin/cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -51,52 +45,46 @@ EOF
 echo "Building Reolink LogGuard.app..."
 /bin/chmod +x "$SCRIPT_DIR/build.sh"
 "$SCRIPT_DIR/build.sh"
+[[ -d "$BUILD_APP" ]] || { echo "ERROR: App bundle not found: $BUILD_APP" >&2; exit 1; }
 
-if [[ ! -d "$BUILD_APP" ]]; then
-  echo "ERROR: Build completed but app bundle was not found: $BUILD_APP" >&2
-  exit 1
-fi
-
-# A reinstall is a true replacement: close the old app, remove the entire old bundle,
-# then copy the newly built bundle. Never merge files into an existing .app.
 /usr/bin/pkill -x "ReolinkLogGuard" 2>/dev/null || true
 sleep 1
 
 if [[ -e "$APP_DEST" ]]; then
   echo "Removing previous application..."
-  if ! /bin/rm -rf "$APP_DEST" 2>/dev/null; then
-    sudo /bin/rm -rf "$APP_DEST"
-  fi
+  /bin/rm -rf "$APP_DEST" 2>/dev/null || sudo /bin/rm -rf "$APP_DEST"
 fi
-
-if [[ -e "$APP_DEST" ]]; then
-  echo "ERROR: Could not remove previous application: $APP_DEST" >&2
-  exit 1
-fi
+[[ ! -e "$APP_DEST" ]] || { echo "ERROR: Could not remove previous application." >&2; exit 1; }
 
 echo "Installing fresh application bundle..."
-if ! /bin/cp -R "$BUILD_APP" "$APP_DEST" 2>/dev/null; then
-  sudo /bin/cp -R "$BUILD_APP" "$APP_DEST"
-fi
+/bin/cp -R "$BUILD_APP" "$APP_DEST" 2>/dev/null || sudo /bin/cp -R "$BUILD_APP" "$APP_DEST"
+[[ -x "$APP_DEST/Contents/MacOS/ReolinkLogGuard" ]] || { echo "ERROR: Installed app is missing its executable." >&2; exit 1; }
+/usr/bin/codesign --verify --deep --strict "$APP_DEST" >/dev/null 2>&1 || { echo "ERROR: Installed app failed code-signature verification." >&2; exit 1; }
 
-# Verify that the newly installed bundle contains the expected executable.
-if [[ ! -x "$APP_DEST/Contents/MacOS/ReolinkLogGuard" ]]; then
-  echo "ERROR: Installed app is missing its executable." >&2
-  exit 1
-fi
-
-/usr/bin/codesign --verify --deep --strict "$APP_DEST" >/dev/null 2>&1 || {
-  echo "ERROR: Installed application failed code-signature verification." >&2
-  exit 1
-}
-
+# Explicitly register this hand-built .app with macOS. Copying an app into /Applications
+# is not always enough for Launchpad/Spotlight to discover it immediately.
+echo "Registering application with macOS..."
 /usr/bin/touch "$APP_DEST"
-/usr/bin/mdimport "$APP_DEST" >/dev/null 2>&1 || true
+if [[ -x "$LSREGISTER" ]]; then
+  "$LSREGISTER" -f "$APP_DEST" >/dev/null 2>&1 || true
+fi
+/usr/bin/mdimport -f "$APP_DEST" >/dev/null 2>&1 || /usr/bin/mdimport "$APP_DEST" >/dev/null 2>&1 || true
+
+# Ask Dock/Launchpad to refresh its application view. It restarts automatically.
+/usr/bin/killall Dock >/dev/null 2>&1 || true
+
+# Give LaunchServices a moment, then verify name-based resolution. Failure here is
+# informational because exact-path launching still works.
+sleep 2
+if /usr/bin/open -Ra "Reolink LogGuard" >/dev/null 2>&1; then
+  echo "LaunchServices registration verified: Reolink LogGuard"
+else
+  echo "WARNING: macOS has not resolved the app by name yet; exact-path launch will still work."
+fi
 
 echo "Installed fresh app: $APP_DEST"
 echo "Background cleanup interval: $INTERVAL seconds"
 
-# Launch by exact bundle path rather than relying on LaunchServices name indexing.
 if ! /usr/bin/open "$APP_DEST"; then
   echo "Install succeeded, but macOS did not launch the app automatically."
   echo "Try: open \"$APP_DEST\""
