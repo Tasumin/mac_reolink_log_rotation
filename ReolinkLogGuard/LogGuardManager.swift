@@ -9,11 +9,13 @@ final class LogGuardManager: ObservableObject {
     @Published var logDirectory: String = "~/Library/Logs/reolink"
     @Published var activity = "Ready"
     @Published var isRunning = false
+    @Published var isUpdating = false
 
     private var installDir: String { NSHomeDirectory() + "/.local/share/reolink-logguard" }
     private var configPath: String { installDir + "/config.conf" }
     private var scriptPath: String { installDir + "/logguard.sh" }
     private var plistPath: String { NSHomeDirectory() + "/Library/LaunchAgents/com.reolink.logguard.plist" }
+    private var repoDir: String { NSHomeDirectory() + "/mac_reolink_log_rotation" }
 
     init() { loadConfig(); refresh() }
 
@@ -73,6 +75,31 @@ final class LogGuardManager: ObservableObject {
         }
     }
 
+    func updateApp() {
+        guard !isUpdating else { return }
+        guard FileManager.default.fileExists(atPath: repoDir + "/.git") else {
+            activity = "Update source was not found at ~/mac_reolink_log_rotation. Reinstall from GitHub first."
+            return
+        }
+        isUpdating = true
+        activity = "Checking GitHub and installing the latest version…"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let updater = """
+            set -e
+            cd \(self.shellQuote(self.repoDir))
+            /usr/bin/git fetch origin
+            /usr/bin/git reset --hard origin/main
+            /bin/chmod +x ./*.sh
+            nohup /bin/zsh ./install.sh > \"$HOME/Library/Logs/reolink-logguard-update.log\" 2>&1 &
+            """
+            let result = self.run("/bin/zsh", ["-c", updater])
+            DispatchQueue.main.async {
+                self.activity = result.isEmpty ? "Update started. LogGuard will close and reopen when installation completes." : result
+                self.isUpdating = false
+            }
+        }
+    }
+
     func openLogFolder() { NSWorkspace.shared.open(URL(fileURLWithPath: expandedLogDirectory)) }
     func openActivityLog() {
         let path = NSHomeDirectory() + "/Library/Logs/reolink-logguard.log"
@@ -86,6 +113,8 @@ final class LogGuardManager: ObservableObject {
         v = v.replacingOccurrences(of: "$HOME", with: NSHomeDirectory())
         return v
     }
+
+    private func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     private func directorySize(_ path: String) -> Int64 {
         let output = run("/usr/bin/du", ["-sk", path])
