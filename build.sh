@@ -16,8 +16,6 @@ mkdir -p "$MACOS" "$RESOURCES" "$ICONSET"
 SDK=$(xcrun --sdk macosx --show-sdk-path)
 xcrun swiftc -O -sdk "$SDK" -target "$(uname -m)-apple-macos13.0" -framework SwiftUI -framework AppKit "$ROOT"/ReolinkLogGuard/*.swift -o "$MACOS/ReolinkLogGuard"
 
-# Bundle everything required for a first-run installation. A DMG user does not
-# need Git, the source repository, Homebrew, or a separate installer script.
 /bin/cp -f "$ROOT/logguard.sh" "$RESOURCES/logguard.sh"
 /bin/chmod +x "$RESOURCES/logguard.sh"
 /bin/cp -f "$ROOT/config.conf" "$RESOURCES/config.conf"
@@ -49,8 +47,8 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
 <key>CFBundleExecutable</key><string>ReolinkLogGuard</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleIconFile</key><string>ReolinkLogGuard.icns</string>
-<key>CFBundleShortVersionString</key><string>1.1.0</string>
-<key>CFBundleVersion</key><string>4</string>
+<key>CFBundleShortVersionString</key><string>1.1.1</string>
+<key>CFBundleVersion</key><string>5</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
