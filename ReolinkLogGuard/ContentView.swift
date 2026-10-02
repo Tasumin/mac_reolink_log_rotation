@@ -16,55 +16,39 @@ struct ContentView: View {
                 }
                 Spacer()
                 Label(manager.isRunning ? "Automatic cleanup active" : "Service not loaded", systemImage: manager.isRunning ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 10)
+            }.padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 10)
 
             TabView(selection: $selectedTab) {
-                DashboardTab(showNodeVyuPreview: $showingNodeVyuPreview)
-                    .environmentObject(manager)
-                    .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }
-                    .tag(0)
+                DashboardTab(showNodeVyuPreview: $showingNodeVyuPreview).environmentObject(manager).tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }.tag(0)
                 ConfigurationTab().environmentObject(manager).tabItem { Label("Configuration", systemImage: "slider.horizontal.3") }.tag(1)
                 MaintenanceTab(showHelp: $showingHelp).environmentObject(manager).tabItem { Label("Maintenance", systemImage: "wrench.and.screwdriver") }.tag(2)
                 AboutTab(showNodeVyuPreview: $showingNodeVyuPreview).tabItem { Label("NodeVyu", systemImage: "wave.3.right.circle") }.tag(3)
-            }
-            .padding(.horizontal, 16).padding(.bottom, 12)
+            }.padding(.horizontal, 16).padding(.bottom, 12)
         }
-        .frame(minWidth: 760, minHeight: 620)
-        .onAppear { manager.refresh() }
+        .frame(minWidth: 760, minHeight: 620).onAppear { manager.refresh() }
         .sheet(isPresented: $showingHelp) { HelpView() }
         .sheet(isPresented: $showingNodeVyuPreview) { NodeVyuPreview() }
     }
 }
 
 struct DashboardTab: View {
-    @EnvironmentObject var manager: LogGuardManager
-    @Binding var showNodeVyuPreview: Bool
+    @EnvironmentObject var manager: LogGuardManager; @Binding var showNodeVyuPreview: Bool
     private var limitText: String { "Limit: " + String(format: "%.1f", manager.maxSizeGB) + " GB" }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
-                    StatusCard(title: "Log Storage", value: manager.formattedSize, detail: limitText, icon: "internaldrive")
-                    StatusCard(title: "Retention", value: "\(manager.retentionDays) days", detail: "Old logs automatically removed", icon: "calendar.badge.clock")
-                    StatusCard(title: "Cleanup", value: manager.isRunning ? "Active" : "Stopped", detail: manager.isRunning ? "Background protection enabled" : "Service needs attention", icon: manager.isRunning ? "checkmark.shield" : "exclamationmark.shield")
-                }
-                GroupBox("Storage Protection") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack { Text(manager.formattedSize).font(.title2).bold(); Spacer(); Text("\(Int(manager.fractionUsed * 100))% of configured limit") }
-                        ProgressView(value: manager.fractionUsed)
-                        Text(manager.expandedLogDirectory).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                        HStack { Button("Clean Now") { manager.runCleanup(dryRun: false) }.buttonStyle(.borderedProminent); Button("Dry Run") { manager.runCleanup(dryRun: true) }; Button("Open Log Folder") { manager.openLogFolder() }; Spacer(); Button("Refresh") { manager.refresh() } }
-                    }.padding(6)
-                }
-                GroupBox("Recent Activity") { ScrollView { Text(manager.activity).font(.system(.caption, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }.frame(height: 80).padding(6) }
-                NodeVyuPromotion(showPreview: $showNodeVyuPreview)
-            }.padding(16)
+    var body: some View { ScrollView { VStack(alignment: .leading, spacing: 18) {
+        HStack(spacing: 14) {
+            StatusCard(title: "Log Storage", value: manager.formattedSize, detail: limitText, icon: "internaldrive")
+            StatusCard(title: "Retention", value: "\(manager.retentionDays) days", detail: "Old logs automatically removed", icon: "calendar.badge.clock")
+            StatusCard(title: "Cleanup", value: manager.isRunning ? "Active" : "Stopped", detail: manager.isRunning ? "Background protection enabled" : "Service needs attention", icon: manager.isRunning ? "checkmark.shield" : "exclamationmark.shield")
         }
-    }
+        GroupBox("Storage Protection") { VStack(alignment: .leading, spacing: 10) {
+            HStack { Text(manager.formattedSize).font(.title2).bold(); Spacer(); Text("\(Int(manager.fractionUsed * 100))% of configured limit") }
+            ProgressView(value: manager.fractionUsed)
+            Text(manager.expandedLogDirectory).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            HStack { Button("Clean Now") { manager.runCleanup(dryRun: false) }.buttonStyle(.borderedProminent); Button("Dry Run") { manager.runCleanup(dryRun: true) }; Button("Open Log Folder") { manager.openLogFolder() }; Spacer(); Button("Refresh") { manager.refresh() } }
+        }.padding(6) }
+        GroupBox("Recent Activity") { ScrollView { Text(manager.activity).font(.system(.caption, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }.frame(height: 80).padding(6) }
+        NodeVyuPromotion(showPreview: $showNodeVyuPreview)
+    }.padding(16) } }
 }
 
 struct StatusCard: View {
@@ -106,20 +90,48 @@ struct MaintenanceTab: View {
 
 struct AboutTab: View { @Binding var showNodeVyuPreview: Bool; var body: some View { ScrollView { NodeVyuPromotion(showPreview: $showNodeVyuPreview).padding(20) } } }
 
+private func bundledNodeVyuImage() -> NSImage? {
+    guard let url = Bundle.main.url(forResource: "homepage-platform", withExtension: "png") else { return nil }
+    return NSImage(contentsOf: url)
+}
+
+struct NodeVyuPlatformImage: View {
+    var maxHeight: CGFloat = 300
+    var body: some View {
+        Group {
+            if let localImage = bundledNodeVyuImage() {
+                Image(nsImage: localImage).resizable().scaledToFit()
+            } else {
+                AsyncImage(url: URL(string: "https://nodevyu.com/homepage-platform.png")) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFit()
+                    case .failure: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); VStack(spacing: 8) { Image(systemName: "photo.badge.exclamationmark").font(.title); Text("NodeVyu platform preview unavailable").font(.headline) } }
+                    case .empty: ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); ProgressView("Loading NodeVyu preview…") }
+                    @unknown default: EmptyView()
+                    }
+                }
+            }
+        }.frame(maxWidth: .infinity, maxHeight: maxHeight).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+    }
+}
+
 struct NodeVyuPromotion: View {
-    @Binding var showPreview: Bool; private let imageURL = URL(string: "https://nodevyu.com/og-image.png")!
+    @Binding var showPreview: Bool
     var body: some View { VStack(alignment: .leading, spacing: 14) {
         HStack(alignment: .top, spacing: 12) { Image(systemName: "wave.3.right.circle.fill").font(.system(size: 34)).foregroundStyle(.blue); VStack(alignment: .leading, spacing: 4) { Text("Take monitoring beyond your Mac with NodeVyu").font(.title3).bold(); Text("Know what's online, what's failing, and where attention is needed — from one monitoring platform.").foregroundStyle(.secondary) } }
         HStack(spacing: 18) { Label("Device & service monitoring", systemImage: "network"); Label("Centralized visibility", systemImage: "rectangle.3.group"); Label("Fast issue detection", systemImage: "exclamationmark.triangle") }.font(.caption)
-        AsyncImage(url: imageURL) { phase in switch phase { case .success(let image): image.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary)).onTapGesture { showPreview = true }.help("Click to enlarge the NodeVyu platform preview"); case .failure: platformPlaceholder; case .empty: ZStack { platformPlaceholder; ProgressView() }; @unknown default: platformPlaceholder } }.frame(maxWidth: .infinity, minHeight: 160, maxHeight: 260)
+        NodeVyuPlatformImage(maxHeight: 320).contentShape(Rectangle()).onTapGesture { showPreview = true }.help("Click to enlarge the NodeVyu platform preview")
         HStack { Text("Monitor infrastructure, endpoints and services without waiting for users to tell you something is down.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("See NodeVyu") { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }.buttonStyle(.borderedProminent) }
     }.padding(16).background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 12)) }
-    private var platformPlaceholder: some View { ZStack { RoundedRectangle(cornerRadius: 8).fill(.quaternary); VStack(spacing: 8) { Image(systemName: "rectangle.3.group").font(.system(size: 34)).foregroundStyle(.secondary); Text("NodeVyu Platform Preview").font(.headline); Text("Visit NodeVyu to see the monitoring platform.").font(.caption).foregroundStyle(.secondary) } }.contentShape(Rectangle()).onTapGesture { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } } }
 }
 
 struct NodeVyuPreview: View {
-    @Environment(\.dismiss) private var dismiss; private let imageURL = URL(string: "https://nodevyu.com/og-image.png")!
-    var body: some View { VStack(spacing: 12) { HStack { VStack(alignment: .leading) { Text("NodeVyu Monitoring Platform").font(.title2).bold(); Text("Centralized visibility for devices, services and infrastructure.").foregroundStyle(.secondary) }; Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }; AsyncImage(url: imageURL) { phase in if case .success(let image) = phase { image.resizable().scaledToFit() } else { ProgressView("Loading NodeVyu preview…") } }.frame(maxWidth: .infinity, maxHeight: .infinity); HStack { Text("See what needs attention before it becomes a bigger problem.").foregroundStyle(.secondary); Spacer(); Button("Visit nodevyu.com") { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }.buttonStyle(.borderedProminent) } }.padding(20).frame(minWidth: 900, minHeight: 620) }
+    @Environment(\.dismiss) private var dismiss
+    var body: some View { VStack(spacing: 12) {
+        HStack { VStack(alignment: .leading) { Text("NodeVyu Monitoring Platform").font(.title2).bold(); Text("Centralized visibility for devices, services and infrastructure.").foregroundStyle(.secondary) }; Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }
+        NodeVyuPlatformImage(maxHeight: 720)
+        HStack { Text("See what needs attention before it becomes a bigger problem.").foregroundStyle(.secondary); Spacer(); Button("Visit nodevyu.com") { if let url = URL(string: "https://nodevyu.com") { NSWorkspace.shared.open(url) } }.buttonStyle(.borderedProminent) }
+    }.padding(20).frame(minWidth: 900, minHeight: 620) }
 }
 
 struct HelpView: View {
